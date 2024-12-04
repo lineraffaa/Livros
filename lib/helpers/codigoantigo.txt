@@ -1,0 +1,337 @@
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+
+String idColumn = "idColumn";
+String tituloColumn = "tituloColumn";
+String autorColumn = "autorColumn";
+String ano_publiColumn = "anopubliColumn";
+String generoColumn = "generoColumn";
+String editoraColumn = "editoraColumn";
+String livroTable = "livroTable";
+
+class LivroHelper {
+  static final LivroHelper _instance = LivroHelper.internal();
+  factory LivroHelper() => _instance;
+  LivroHelper.internal();
+
+  late Database _db;
+
+  Future<Database> initDb() async {
+    final databasePath = await getDatabasesPath();
+    final path = join(databasePath, "livros.db");
+
+    return await openDatabase(path, version: 1,
+        onCreate: (Database db, int newVersion) async {
+      await db.execute(
+          "CREATE TABLE $livroTable($idColumn INTEGER PRIMARY KEY, $tituloColumn TEXT, $generoColumn TEXT, $ano_publiColumn TEXT, $autorColumn TEXT, $editoraColumn TEXT)");
+    });
+  }
+
+  Future<Database> get db async {
+    if (_db != null) {
+      return _db;
+    } else {
+      _db = await initDb();
+      return _db;
+    }
+  }
+
+  Future<List<Livro>> getAllLivros() async {
+    Database dbLivro = await db;
+    List<Map> listMap = await dbLivro.rawQuery("SELECT * FROM $livroTable");
+    List<Livro> listLivro = [];
+
+    for (Map m in listMap) {
+      listLivro.add(Livro.fromMap(m));
+    }
+
+    return listLivro;
+  }
+
+  Future<Livro?> getLivro(int id) async {
+    Database dbLivro = await db;
+    List<Map> maps = await dbLivro.query(
+      livroTable,
+      columns: [
+        idColumn,
+        tituloColumn,
+        ano_publiColumn,
+        editoraColumn,
+        generoColumn,
+      ],
+      where: "$idColumn = ?",
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return Livro.fromMap(maps.first);
+    } else {
+      return null;
+    }
+  }
+
+  Future<Livro> saveLivro(Livro livro) async {
+    Database dbLivro = await db;
+    livro.id = await dbLivro.insert(livroTable, livro.toMap());
+    return livro;
+  }
+
+  Future<int> updateLivro(Livro livro) async {
+    Database dbLivro = await db;
+    return await dbLivro.update(livroTable, livro.toMap(),
+        where: "$idColumn = ?", whereArgs: [livro.id]);
+  }
+
+  Future<int> deleteLivro(int id) async {
+    Database dbLivro = await db;
+    return await dbLivro
+        .delete(livroTable, where: "$idColumn = ?", whereArgs: [id]);
+  }
+}
+
+class Livro {
+  int? id;
+  late String titulo;
+  late String autor;
+  late String anopubli;
+  late String editora;
+  late String genero;
+
+  Livro();
+
+  Livro.fromMap(Map map) {
+    id = map[idColumn];
+    titulo = map[tituloColumn];
+    autor = map[autorColumn];
+    anopubli = map[ano_publiColumn];
+    genero = map[generoColumn];
+    editora = map[editoraColumn];
+  }
+
+  Map<String, Object?> toMap() {
+    var map = <String, Object?>{
+      tituloColumn: titulo,
+      autorColumn: autor,
+      ano_publiColumn: anopubli,
+      generoColumn: genero,
+      editoraColumn: editora,
+    };
+
+    if (id != null) {
+      map[idColumn] = id;
+    }
+
+    return map;
+  }
+
+  @override
+  String toString() {
+    return "Livro(id: $id, titulo: $titulo, autor: $autor, ano de publicação: $anopubli, gênero: $genero, editora: $editora)";
+  }
+}
+
+
+
+
+
+import 'package:flutter/material.dart';
+import 'dart:io';
+class ContactPage extends StatefulWidget{
+final Contact contact;
+ContactPage({this.contact});
+@override
+_ContactPageState createState () => _ContactPageState();
+}
+class _ContactPageState extends State<ContactPage>{
+Contact _editContact;
+bool _userEdited = false;
+final _nameController = TextEditingController();
+final _emailController = TextEditingController();
+final _phoneController = TextEditingController();
+@override
+void initState(){
+super.initState();
+if(widget.contact == null){
+_editContact = Contact();
+}else{
+_editContact = Contact.fromMap(widget.contact.toMap());
+_nameController.text = _editContact.name;
+_emailController.text = _editContact.email;
+_phoneController.text = _editContact.phone;
+}
+}
+@override
+Widget build(BuildContext context){
+return Scaffold(
+appBar: AppBar(
+backgroundColor: Colors.blue,
+title: Text(_editContact.name ?? "Novo Contato"),
+centerTitle: true,
+),
+floatingActionButton: FloatingActionButton(
+onPressed: null,
+child: const Icon(Icons.save),
+backgroundColor: Colors.blue,
+),
+body: SingleChildScrollView(
+padding: EdgeInsets.all(10.0),
+child: Column(children: <Widget>[
+GestureDetector(
+child: Container(
+width: 140.0,
+height: 140.0,
+decoration: BoxDecoration(
+shape: BoxShape.circle,
+image: DecorationImage(
+image: _editContact.img != null
+? FileImage(File(_editContact.img))
+: AssetImage("imgs/avatar.png")),
+),
+),
+),
+TextField(
+controller: _nameController,
+decoration: InputDecoration(labelText: "Nome"),
+onChanged: (text){
+_userEdited = true;
+setState(() {
+_editContact.name = text;
+});
+},
+),
+TextField(
+controller: _emailController,
+decoration: InputDecoration(labelText: "Email"),
+onChanged: (text){
+_userEdited = true;
+_editContact.email = text;
+},
+keyboardType: TextInputType.emailAddress,
+),
+TextField(
+controller: _phoneController,
+decoration: InputDecoration(labelText: "Teleone"),
+onChanged: (text){
+_userEdited = true;
+_editContact.phone = text;
+},
+keyboardType: TextInputType.phone,
+),
+]),
+)
+);
+}
+}
+
+
+
+import 'package:flutter/material.dart';
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  bool _userEdit = false;
+  late TextEditingController _tituloController;
+  late FocusNode _tituloFocus;
+  Livro? _editLivro = Livro();
+
+  @override
+  void initState() {
+    super.initState();
+    _tituloController = TextEditingController();
+    _tituloFocus = FocusNode();
+  }
+
+  Future<bool> _requestPop() async {
+    if (_userEdit) {
+      final shouldPop = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Descartar Alterações"),
+            content: Text("Se sair as alterações serão perdidas!"),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+                child: const Text("Cancelar"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+                child: const Text("Sim"),
+              ),
+            ],
+          );
+        },
+      ) ?? false; // Retorna false se showDialog retornar null
+
+      return shouldPop;
+    } else {
+      return true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      onPopInvokedWithResult: (result) async {
+        return await _requestPop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 4, 180, 255),
+          title: Text(_editLivro?.titulo ?? "Novo Livro"),
+          centerTitle: true,
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            if (_editLivro!.titulo.isNotEmpty) {
+              Navigator.pop(context, _editLivro);
+            } else {
+              FocusScope.of(context).requestFocus(_tituloFocus);
+            }
+          },
+          child: Icon(Icons.save),
+          backgroundColor: Colors.blueAccent,
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(10.0),
+          child: Column(
+            children: <Widget>[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _tituloController,
+                focusNode: _tituloFocus,
+                decoration: InputDecoration(labelText: "Título"),
+                onChanged: (text) {
+                  _userEdit = true;
+                  setState(() {
+                    _editLivro?.titulo = text;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void main() {
+  runApp(MaterialApp(
+    home: MyHomePage(),
+  ));
+}
+
+class Livro {
+  String titulo = "";
+
+  // Outros atributos e métodos
+}
